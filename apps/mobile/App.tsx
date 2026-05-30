@@ -17,8 +17,10 @@ import { SignupScreen } from "./src/screens/SignupScreen";
 import { AlbumScreen } from "./src/screens/AlbumScreen";
 import { DuplicatesScreen } from "./src/screens/DuplicatesScreen";
 import { FriendsScreen } from "./src/screens/FriendsScreen";
+import { MissingScreen } from "./src/screens/MissingScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
+import { TextListsScreen } from "./src/screens/TextListsScreen";
 import { TradesScreen } from "./src/screens/TradesScreen";
 import { colors, spacing, type } from "./src/theme/tokens";
 
@@ -77,12 +79,31 @@ export default function App() {
   );
   const headerTopInset = topInset + spacing.md;
   const bottomInset = Platform.select({
-    ios: 30,
-    android: 18,
-    default: 18,
+    ios: 36,
+    android: 38,
+    default: 32,
   });
   const [showSignup, setShowSignup] = React.useState(false);
-  const tabContentPaddingBottom = spacing.xxl + 76 + (bottomInset ?? 0);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const tabContentPaddingBottom = spacing.xxl + 104 + (bottomInset ?? 0);
+  const primaryTabs = [
+    { id: "search", label: "Buscar", icon: "search" },
+    { id: "album", label: "Album", icon: "book" },
+    { id: "scan", label: "Scan", icon: "camera" },
+    { id: "trades", label: "Trocas", icon: "swap-horizontal" },
+  ] as const;
+  const menuTabs = [
+    { id: "duplicates", label: "Repetidas", icon: "copy" },
+    { id: "missing", label: "Faltantes", icon: "albums" },
+    { id: "lists", label: "Listas", icon: "document-text" },
+    { id: "friends", label: "Amigos", icon: "people" },
+  ] as const;
+  const isMenuTabActive = menuTabs.some((item) => item.id === tab);
+
+  function navigateToTab(nextTab: any) {
+    setTab(nextTab);
+    setMenuOpen(false);
+  }
 
   if (!auth.user) {
     return (
@@ -170,7 +191,18 @@ export default function App() {
         ) : null}
 
         {tab === "duplicates" ? (
-          <DuplicatesScreen album={album} addDuplicate={addDuplicate} />
+          <DuplicatesScreen
+            album={album}
+            addDuplicate={addDuplicate}
+          />
+        ) : null}
+
+        {tab === "missing" ? (
+          <MissingScreen album={album} toggleSticker={toggleSticker} />
+        ) : null}
+
+        {tab === "lists" ? (
+          <TextListsScreen album={album} toggleSticker={toggleSticker} />
         ) : null}
 
         {tab === "scan" ? (
@@ -213,38 +245,93 @@ export default function App() {
         ) : null}
       </ScrollView>
 
+      {menuOpen ? (
+        <View pointerEvents="box-none" style={styles.menuOverlay}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="fechar menu"
+            style={styles.menuBackdrop}
+            onPress={() => setMenuOpen(false)}
+          />
+          <View style={[styles.menuSheet, { bottom: 98 + (bottomInset ?? 0) }]}>
+            <Text style={styles.menuTitle}>Menu</Text>
+            <View style={styles.menuGrid}>
+              {menuTabs.map((item) => {
+                const isActive = tab === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: isActive }}
+                    style={[styles.menuItem, isActive && styles.menuItemActive]}
+                    onPress={() => navigateToTab(item.id)}
+                  >
+                    <Ionicons
+                      name={(isActive ? item.icon : `${item.icon}-outline`) as any}
+                      size={20}
+                      color={isActive ? colors.white : colors.primaryStrong}
+                    />
+                    <Text
+                      style={[
+                        styles.menuItemText,
+                        isActive && styles.menuItemTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      ) : null}
+
       <View
         accessibilityRole="tablist"
-        style={[styles.bottomNav, { paddingBottom: 14 + (bottomInset ?? 0) }]}
+        style={[styles.bottomNav, { paddingBottom: 22 + (bottomInset ?? 0) }]}
       >
-        {[
-          { id: "search", label: "Buscar", icon: "search" },
-          { id: "album", label: "Album", icon: "book" },
-          { id: "duplicates", label: "Repetidas", icon: "copy" },
-          { id: "scan", label: "Scan", icon: "camera" },
-          { id: "trades", label: "Trocas", icon: "swap-horizontal" },
-          { id: "friends", label: "Amigos", icon: "people" },
-        ].map((item) => {
-          const isActive = tab === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              style={styles.navItem}
-              onPress={() => setTab(item.id as any)}
+          {primaryTabs.map((item) => {
+            const isActive = tab === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                style={styles.navItem}
+                onPress={() => navigateToTab(item.id)}
+              >
+                <Ionicons
+                  name={(isActive ? item.icon : `${item.icon}-outline`) as any}
+                  size={22}
+                  color={isActive ? colors.primaryStrong : colors.textMuted}
+                />
+                <Text style={[styles.navText, isActive && styles.navTextActive]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: menuOpen || isMenuTabActive }}
+            style={styles.navItem}
+            onPress={() => setMenuOpen((current) => !current)}
+          >
+            <Ionicons
+              name={menuOpen || isMenuTabActive ? "menu" : "menu-outline"}
+              size={22}
+              color={menuOpen || isMenuTabActive ? colors.primaryStrong : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.navText,
+                (menuOpen || isMenuTabActive) && styles.navTextActive,
+              ]}
             >
-              <Ionicons
-                name={(isActive ? item.icon : `${item.icon}-outline`) as any}
-                size={22}
-                color={isActive ? colors.primaryStrong : colors.textMuted}
-              />
-              <Text style={[styles.navText, isActive && styles.navTextActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+              Menu
+            </Text>
+          </Pressable>
       </View>
     </View>
   );
@@ -301,7 +388,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     backgroundColor: colors.surface,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingHorizontal: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -311,7 +398,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   navText: {
     marginTop: 4,
@@ -322,5 +409,61 @@ const styles = StyleSheet.create({
   navTextActive: {
     color: colors.primaryStrong,
     fontWeight: "800",
+  },
+  menuOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
+  menuSheet: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+  },
+  menuTitle: {
+    ...type.section,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  menuGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  menuItem: {
+    width: "48%",
+    minHeight: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  menuItemActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryStrong,
+  },
+  menuItemText: {
+    ...type.label,
+    color: colors.primaryStrong,
+  },
+  menuItemTextActive: {
+    color: colors.white,
   },
 });

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { normalizeText } from "@copa/shared";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { StickerSquare } from "../components/StickerSquare";
 import { TeamAccordion } from "../components/TeamAccordion";
 import { AlbumSticker } from "../hooks/useAlbumApp";
 import { EmptyState } from "./EmptyState";
 import { colors, radius, spacing, type } from "../theme/tokens";
+import { getCollectionStats, isStickerOwned } from "../utils/collectionLists";
 
 type AlbumSortMode = "progress" | "name" | "code";
 
@@ -18,32 +18,12 @@ export function AlbumScreen({
   toggleSticker: (code: string) => Promise<void>;
   addDuplicate: (code: string) => Promise<void>;
 }) {
-  const [filterQuery, setFilterQuery] = useState("");
   const [sortMode, setSortMode] = useState<AlbumSortMode>("progress");
-
-  const filteredAlbum = useMemo(() => {
-    const normalizedFilter = normalizeText(filterQuery);
-    if (!normalizedFilter) {
-      return album;
-    }
-
-    return album.filter((sticker) => {
-      const candidates = [
-        sticker.team,
-        sticker.code,
-        sticker.playerName,
-        ...sticker.aliases,
-      ];
-
-      return candidates.some((candidate) =>
-        normalizeText(candidate).includes(normalizedFilter),
-      );
-    });
-  }, [album, filterQuery]);
+  const stats = useMemo(() => getCollectionStats(album), [album]);
 
   const grouped = useMemo(() => {
     const byTeam = new Map<string, AlbumSticker[]>();
-    for (const sticker of filteredAlbum) {
+    for (const sticker of album) {
       const bucket = byTeam.get(sticker.team) ?? [];
       bucket.push(sticker);
       byTeam.set(sticker.team, bucket);
@@ -65,8 +45,8 @@ export function AlbumScreen({
       ] as const)
       .sort((left, right) => {
         if (sortMode === "progress") {
-          const leftOwned = left[1].filter((item) => item.owned).length;
-          const rightOwned = right[1].filter((item) => item.owned).length;
+          const leftOwned = left[1].filter(isStickerOwned).length;
+          const rightOwned = right[1].filter(isStickerOwned).length;
           return rightOwned - leftOwned || left[0].localeCompare(right[0]);
         }
 
@@ -78,22 +58,40 @@ export function AlbumScreen({
 
         return left[0].localeCompare(right[0]);
       });
-  }, [filteredAlbum, sortMode]);
+  }, [album, sortMode]);
 
   return (
     <View>
+      <View style={styles.progressCard}>
+        <View style={styles.progressHeader}>
+          <View>
+            <Text style={styles.progressEyebrow}>Progresso do álbum</Text>
+            <Text style={styles.progressTitle}>
+              {stats.completionPercentage}% completo
+            </Text>
+          </View>
+          <Text style={styles.progressCount}>
+            {stats.ownedCount}/{stats.total}
+          </Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${stats.completionPercentage}%` },
+            ]}
+          />
+        </View>
+        <View style={styles.statsRow}>
+          <Text style={styles.statText}>{stats.missingCount} faltando</Text>
+          <Text style={styles.statText}>
+            {stats.duplicateCopiesCount} repetidas
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.filtersCard}>
-        <Text style={styles.filtersTitle}>Organizar álbum</Text>
-        <TextInput
-          accessibilityLabel="filtrar album"
-          placeholder="Filtre por país, nome ou código"
-          placeholderTextColor={colors.textMuted}
-          style={styles.filterInput}
-          value={filterQuery}
-          onChangeText={setFilterQuery}
-          autoCapitalize="characters"
-          autoCorrect={false}
-        />
+        <Text style={styles.filtersTitle}>Ordenar álbum</Text>
         <View style={styles.sortRow}>
           {[
             { id: "progress", label: "Mais completas" },
@@ -126,8 +124,8 @@ export function AlbumScreen({
 
       {grouped.length === 0 ? (
         <EmptyState
-          title="Nenhuma figurinha encontrada"
-          description="Tente outro nome, código ou país para filtrar o álbum."
+          title="Nenhuma figurinha carregada"
+          description="Atualize o álbum para carregar o catálogo."
         />
       ) : null}
 
@@ -136,7 +134,7 @@ export function AlbumScreen({
           key={teamName}
           teamName={teamName}
           teamCode={stickers[0]?.code.match(/^[A-Z]{3}/)?.[0] ?? ""}
-          badge={`${stickers.filter((sticker) => sticker.owned).length}/${stickers.length}`}
+          badge={`${stickers.filter(isStickerOwned).length}/${stickers.length}`}
           defaultExpanded={teamName === "Brasil"}
           renderContent={() =>
             stickers.map((sticker) => (
@@ -158,6 +156,57 @@ export function AlbumScreen({
 }
 
 const styles = StyleSheet.create({
+  progressCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  progressEyebrow: {
+    ...type.eyebrow,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+  },
+  progressTitle: {
+    ...type.title,
+    fontSize: 24,
+    color: colors.text,
+    marginTop: 2,
+  },
+  progressCount: {
+    ...type.code,
+    color: colors.primaryStrong,
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.backgroundAlt,
+    overflow: "hidden",
+    marginTop: spacing.md,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  statText: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
   filtersCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -171,21 +220,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.sm,
   },
-  filterInput: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    ...type.bodyStrong,
-  },
   sortRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
-    marginTop: spacing.md,
   },
   sortButton: {
     minHeight: 40,

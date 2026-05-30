@@ -209,6 +209,11 @@ describe("Copa Album mobile app", () => {
     });
   });
 
+  async function openMenuTab(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.press(screen.getByRole("tab", { name: "Menu" }));
+    await user.press(screen.getByRole("tab", { name: label }));
+  }
+
   it("keeps the search screen empty before the first query", async () => {
     render(<App />);
 
@@ -228,7 +233,7 @@ describe("Copa Album mobile app", () => {
       expect(mockGetMyAlbum).toHaveBeenCalled();
     });
 
-    await user.press(screen.getByRole("tab", { name: "Amigos" }));
+    await openMenuTab(user, "Amigos");
 
     expect(screen.getByText("AB12CD34EF56")).toBeOnTheScreen();
 
@@ -257,7 +262,7 @@ describe("Copa Album mobile app", () => {
       expect(mockGetMyAlbum).toHaveBeenCalled();
     });
 
-    await user.press(screen.getByRole("tab", { name: "Amigos" }));
+    await openMenuTab(user, "Amigos");
     await user.press(
       screen.getByRole("button", { name: "copiar meu codigo de compartilhamento" }),
     );
@@ -301,7 +306,7 @@ describe("Copa Album mobile app", () => {
       expect(mockGetMyAlbum).toHaveBeenCalled();
     });
 
-    await user.press(screen.getByRole("tab", { name: "Amigos" }));
+    await openMenuTab(user, "Amigos");
     await user.type(screen.getByLabelText("codigo do amigo"), "ZX98YU76TR54");
     await user.press(screen.getByRole("button", { name: "adicionar" }));
 
@@ -393,7 +398,7 @@ describe("Copa Album mobile app", () => {
     });
   });
 
-  it("filters the album by code or player name", async () => {
+  it("keeps album browsing button-based without a text filter", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -402,10 +407,12 @@ describe("Copa Album mobile app", () => {
     });
 
     await user.press(screen.getByRole("tab", { name: "Album" }));
-    await user.type(screen.getByLabelText("filtrar album"), "BRA4");
 
+    expect(screen.queryByLabelText("filtrar album")).toBeNull();
+    expect(screen.getByText("Ordenar álbum")).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "ordenar por Código" }));
     expect(screen.getByText("Marquinhos")).toBeOnTheScreen();
-    expect(screen.queryByText("Alisson")).toBeNull();
+    expect(screen.getByText("Alisson")).toBeOnTheScreen();
   });
 
   it("lets the user remove a wrong scan result and add a missing sticker before applying the review", async () => {

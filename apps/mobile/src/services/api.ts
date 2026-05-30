@@ -1,9 +1,40 @@
 import Constants from "expo-constants";
 
-const FALLBACK_API_BASE = "http://127.0.0.1:3000";
+const PRODUCTION_API_BASE = "https://deyllonramos.cloud/copa-api";
+const LOCAL_API_PORT = 3000;
 
 function normalizeApiBaseUrl(value: string) {
   return value.replace(/\/+$/, "");
+}
+
+function getExpoDevApiBase() {
+  const expoConstants = Constants as typeof Constants & {
+    expoConfig?: {
+      hostUri?: string;
+    };
+    manifest?: {
+      debuggerHost?: string;
+    };
+    manifest2?: {
+      extra?: {
+        expoGo?: {
+          debuggerHost?: string;
+        };
+      };
+    };
+  };
+
+  const hostUri =
+    expoConstants.expoConfig?.hostUri ||
+    expoConstants.manifest2?.extra?.expoGo?.debuggerHost ||
+    expoConstants.manifest?.debuggerHost;
+
+  const host = hostUri?.split(":")[0];
+  if (!host) {
+    return undefined;
+  }
+
+  return `http://${host}:${LOCAL_API_PORT}`;
 }
 
 export function getApiBase() {
@@ -13,7 +44,10 @@ export function getApiBase() {
     | undefined;
 
   return normalizeApiBaseUrl(
-    runtimeGlobal.API_BASE || extra?.apiBaseUrl || FALLBACK_API_BASE,
+    runtimeGlobal.API_BASE ||
+      extra?.apiBaseUrl ||
+      getExpoDevApiBase() ||
+      PRODUCTION_API_BASE,
   );
 }
 

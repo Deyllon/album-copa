@@ -4,22 +4,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { AlbumSticker } from "../hooks/useAlbumApp";
 import { colors, radius, spacing, type } from "../theme/tokens";
 import {
-  getDuplicateStickers,
+  getMissingStickers,
   getStickerName,
   groupStickersByTeamCode,
 } from "../utils/collectionLists";
 import { EmptyState } from "./EmptyState";
 
-export function DuplicatesScreen({
+export function MissingScreen({
   album,
-  addDuplicate,
+  toggleSticker,
 }: {
   album: AlbumSticker[];
-  addDuplicate: (code: string) => Promise<void>;
+  toggleSticker: (code: string) => Promise<void>;
 }) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const duplicateGroups = useMemo(
-    () => groupStickersByTeamCode(getDuplicateStickers(album)),
+  const missingGroups = useMemo(
+    () => groupStickersByTeamCode(getMissingStickers(album)),
     [album],
   );
 
@@ -31,11 +31,11 @@ export function DuplicatesScreen({
     });
   }
 
-  if (duplicateGroups.length === 0) {
+  if (missingGroups.length === 0) {
     return (
       <EmptyState
-        title="Nenhuma repetida por enquanto"
-        description="Quando uma figurinha repetir, ela aparece aqui pronta para troca."
+        title="Álbum completo"
+        description="Todas as figurinhas do catálogo já estão marcadas no seu álbum."
       />
     );
   }
@@ -43,24 +43,20 @@ export function DuplicatesScreen({
   return (
     <View style={styles.container}>
       <View style={styles.screenHeader}>
-        <Text style={styles.title}>Repetidas</Text>
+        <Text style={styles.title}>Faltantes</Text>
         <Text style={styles.subtitle}>
-          Agrupadas pelo código da seleção para você achar rápido na hora da troca.
+          Toque no código da seleção para abrir as figurinhas que faltam.
         </Text>
       </View>
 
-      {duplicateGroups.map(([teamCode, stickers]) => {
+      {missingGroups.map(([teamCode, stickers]) => {
         const expanded = expandedGroups.has(teamCode);
-        const totalCopies = stickers.reduce(
-          (sum, sticker) => sum + sticker.duplicateCount,
-          0,
-        );
 
         return (
           <View key={teamCode} style={styles.groupCard}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`abrir repetidas ${teamCode}`}
+              accessibilityLabel={`abrir faltantes ${teamCode}`}
               accessibilityState={{ expanded }}
               style={styles.groupHeader}
               onPress={() => toggleGroup(teamCode)}
@@ -70,9 +66,7 @@ export function DuplicatesScreen({
               </View>
               <View style={styles.groupInfo}>
                 <Text style={styles.groupTitle}>{stickers[0]?.team ?? teamCode}</Text>
-                <Text style={styles.groupMeta}>
-                  {stickers.length} código(s) | {totalCopies} repetida(s)
-                </Text>
+                <Text style={styles.groupMeta}>{stickers.length} faltando</Text>
               </View>
               <Ionicons
                 name={expanded ? "chevron-up" : "chevron-down"}
@@ -84,7 +78,13 @@ export function DuplicatesScreen({
             {expanded ? (
               <View style={styles.drawer}>
                 {stickers.map((sticker) => (
-                  <View key={sticker.code} style={styles.stickerRow}>
+                  <Pressable
+                    key={sticker.code}
+                    accessibilityRole="button"
+                    accessibilityLabel={`adicionar ${sticker.code} ao álbum`}
+                    style={styles.stickerRow}
+                    onPress={() => toggleSticker(sticker.code)}
+                  >
                     <View style={styles.stickerMain}>
                       <Text style={styles.stickerCode}>{sticker.code}</Text>
                       <Text style={styles.stickerName}>{getStickerName(sticker)}</Text>
@@ -92,19 +92,12 @@ export function DuplicatesScreen({
                         Página {sticker.albumPage} | Posição {sticker.albumPosition}
                       </Text>
                     </View>
-                    <View style={styles.copyBadge}>
-                      <Text style={styles.copyBadgeText}>x{sticker.duplicateCount}</Text>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`adicionar outra repetida ${sticker.code}`}
-                      hitSlop={10}
-                      style={styles.addButton}
-                      onPress={() => addDuplicate(sticker.code)}
-                    >
-                      <Ionicons name="add" size={18} color={colors.primaryStrong} />
-                    </Pressable>
-                  </View>
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={22}
+                      color={colors.primaryStrong}
+                    />
+                  </Pressable>
                 ))}
               </View>
             ) : null}
@@ -144,6 +137,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.md,
+    backgroundColor: colors.backgroundAlt,
   },
   teamCodePill: {
     minWidth: 64,
@@ -180,9 +174,11 @@ const styles = StyleSheet.create({
   stickerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
+    gap: spacing.md,
     borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: spacing.md,
   },
   stickerMain: {
@@ -201,28 +197,5 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textMuted,
     marginTop: 1,
-  },
-  copyBadge: {
-    minWidth: 38,
-    height: 30,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-  },
-  copyBadgeText: {
-    ...type.label,
-    color: colors.primaryStrong,
-  },
-  addButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
   },
 });
