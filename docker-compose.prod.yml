@@ -14,7 +14,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1",
+          "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok' || exit 1",
         ]
       interval: 10s
       timeout: 5s
