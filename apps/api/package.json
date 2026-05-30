@@ -9,8 +9,8 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "pretest": "npm --workspace @copa/shared run build",
     "test": "jest --runInBand",
-    "start": "node dist/main.js",
-    "start:dev": "ts-node -r tsconfig-paths/register src/main.ts"
+    "start": "node -r dotenv/config dist/main.js",
+    "start:dev": "ts-node -r dotenv/config -r tsconfig-paths/register src/main.ts"
   },
   "dependencies": {
     "@copa/shared": "0.1.0",

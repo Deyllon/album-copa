@@ -1,6 +1,4 @@
 import "reflect-metadata";
-// Load .env into process.env early so DatabaseService sees MONGODB_URI
-import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import * as bodyParser from "body-parser";
