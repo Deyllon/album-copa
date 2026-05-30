@@ -165,8 +165,13 @@ jobs:
 
             COPA_ENV_FILE=.env.production docker compose -f docker-compose.prod.yml config -q
             docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans
+            docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
-            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"
+            if ! docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"; then
+              docker compose --env-file .env.production -f docker-compose.prod.yml ps
+              docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=120 copa-api copa-mongo
+              exit 1
+            fi
 
             public_api_url="${{ secrets.PUBLIC_API_URL }}"
             if [ -n "$public_api_url" ]; then
