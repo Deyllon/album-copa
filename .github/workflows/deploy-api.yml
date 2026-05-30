@@ -68,7 +68,7 @@ jobs:
             fi
 
             if [ -z "$portfolio_ref" ]; then
-              portfolio_ref="main"
+              portfolio_ref="master"
             fi
 
             if [ -z "$repo_path" ]; then
