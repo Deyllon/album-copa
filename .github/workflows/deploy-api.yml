@@ -32,15 +32,15 @@ jobs:
             portfolio_path="${{ secrets.PORTFOLIO_REPO_PATH }}"
             portfolio_url="${{ secrets.PORTFOLIO_REPO_CLONE_URL }}"
             portfolio_ref="${{ secrets.PORTFOLIO_REPO_BRANCH }}"
-            github_deploy_token="${{ secrets.GITHUB_DEPLOY_TOKEN }}"
+            deploy_token="${{ secrets.DEPLOY_TOKEN }}"
 
-            if [ -z "$github_deploy_token" ]; then
-              echo "GitHub secret obrigatorio ausente: GITHUB_DEPLOY_TOKEN"
+            if [ -z "$deploy_token" ]; then
+              echo "GitHub secret obrigatorio ausente: DEPLOY_TOKEN"
               echo "Esse deploy precisa ler o repo privado Deyllon/Portfolio pela VPS."
               exit 1
             fi
 
-            github_auth_url="https://x-access-token:$github_deploy_token@github.com/"
+            github_auth_url="https://x-access-token:$deploy_token@github.com/"
 
             git_github() {
               git -c "url.$github_auth_url.insteadOf=https://github.com/" "$@"
@@ -173,7 +173,7 @@ jobs:
               curl -fsS --max-time 20 "$public_api_url/catalog/search?q=BRA2" >/dev/null
             fi
 
-        # Required secrets: VPS_HOST, VPS_USER, VPS_KEY, GITHUB_DEPLOY_TOKEN,
+        # Required secrets: VPS_HOST, VPS_USER, VPS_KEY, DEPLOY_TOKEN,
         # REPO_PATH, PORTFOLIO_REPO_PATH, JWT_SECRET,
         # MONGO_INITDB_ROOT_PASSWORD, MONGODB_URI, MONGODB_DB, GEMINI_API_KEY.
         # Optional secrets: VPS_PORT, VPS_KEY_PASSPHRASE, PUBLIC_API_URL,
