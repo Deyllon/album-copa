@@ -178,15 +178,41 @@ jobs:
             fi
             docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
-            if ! docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"; then
+            api_smoke_check="(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"
+            api_ready=false
+            for attempt in $(seq 1 30); do
+              if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$api_smoke_check" >/dev/null 2>&1; then
+                api_ready=true
+                break
+              fi
+              echo "Aguardando Copa API ficar pronta ($attempt/30)..."
+              sleep 2
+            done
+
+            if [ "$api_ready" != "true" ]; then
+              docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$api_smoke_check" || true
               docker compose --env-file .env.production -f docker-compose.prod.yml ps
               docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=120 copa-api copa-mongo
               exit 1
             fi
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$api_smoke_check"
 
             public_api_url="${{ secrets.PUBLIC_API_URL }}"
             if [ -n "$public_api_url" ]; then
-              curl -fsS --max-time 20 "$public_api_url/catalog/search?q=BRA2" >/dev/null
+              public_ready=false
+              for attempt in $(seq 1 20); do
+                if curl -fsS --max-time 10 "$public_api_url/catalog/search?q=BRA2" >/dev/null; then
+                  public_ready=true
+                  break
+                fi
+                echo "Aguardando Copa API publica ficar pronta ($attempt/20)..."
+                sleep 3
+              done
+
+              if [ "$public_ready" != "true" ]; then
+                curl -i --max-time 20 "$public_api_url/catalog/search?q=BRA2" || true
+                exit 1
+              fi
             fi
 
         # Required secrets: VPS_HOST, VPS_USER, VPS_KEY, DEPLOY_TOKEN,
