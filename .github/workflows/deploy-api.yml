@@ -4,6 +4,9 @@ on:
   push:
     branches: [master]
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy API
@@ -29,6 +32,33 @@ jobs:
             portfolio_path="${{ secrets.PORTFOLIO_REPO_PATH }}"
             portfolio_url="${{ secrets.PORTFOLIO_REPO_CLONE_URL }}"
             portfolio_ref="${{ secrets.PORTFOLIO_REPO_BRANCH }}"
+            github_token="${{ secrets.GITHUB_DEPLOY_TOKEN || github.token }}"
+
+            github_auth_url=""
+            if [ -n "$github_token" ]; then
+              github_auth_url="https://x-access-token:$github_token@github.com/"
+            fi
+
+            git_github() {
+              if [ -n "$github_auth_url" ]; then
+                git -c "url.$github_auth_url.insteadOf=https://github.com/" "$@"
+              else
+                git "$@"
+              fi
+            }
+
+            normalize_path() {
+              path_value="$1"
+              if [ "$path_value" = "~" ]; then
+                printf '%s\n' "$HOME"
+              elif [ "${path_value#\~/}" != "$path_value" ]; then
+                printf '%s/%s\n' "$HOME" "${path_value#\~/}"
+              elif [ "${path_value#/}" = "$path_value" ]; then
+                printf '%s/%s\n' "$HOME" "$path_value"
+              else
+                printf '%s\n' "$path_value"
+              fi
+            }
 
             if [ -z "$repo_url" ]; then
               repo_url="https://github.com/${{ github.repository }}.git"
@@ -53,32 +83,35 @@ jobs:
               exit 1
             fi
 
+            repo_path="$(normalize_path "$repo_path")"
+            portfolio_path="$(normalize_path "$portfolio_path")"
+
             if [ ! -d "$repo_path/.git" ]; then
-              if [ -d "$repo_path" ] && [ "$(ls -A "$repo_path")" ]; then
+              if [ -e "$repo_path" ] && [ "$(ls -A "$repo_path")" ]; then
                 echo "$repo_path existe, mas nao e um repo git vazio."
                 exit 1
               fi
               mkdir -p "$(dirname "$repo_path")"
-              git clone "$repo_url" "$repo_path"
+              git_github clone "$repo_url" "$repo_path"
             fi
 
             cd "$repo_path"
             git remote set-url origin "$repo_url"
-            git fetch origin "$deploy_ref" --prune
+            git_github fetch origin "$deploy_ref" --prune
             git reset --hard ${{ github.sha }}
 
             if [ ! -d "$portfolio_path/.git" ]; then
-              if [ -d "$portfolio_path" ] && [ "$(ls -A "$portfolio_path")" ]; then
+              if [ -e "$portfolio_path" ] && [ "$(ls -A "$portfolio_path")" ]; then
                 echo "$portfolio_path existe, mas nao e um repo git vazio."
                 exit 1
               fi
               mkdir -p "$(dirname "$portfolio_path")"
-              git clone "$portfolio_url" "$portfolio_path"
+              git_github clone "$portfolio_url" "$portfolio_path"
             fi
 
             cd "$portfolio_path"
             git remote set-url origin "$portfolio_url"
-            git fetch origin "$portfolio_ref" --prune
+            git_github fetch origin "$portfolio_ref" --prune
             git reset --hard "origin/$portfolio_ref"
 
             if ! grep -q 'handle_path /copa-api/\*' Caddyfile; then
@@ -145,5 +178,5 @@ jobs:
         # PORTFOLIO_REPO_PATH, JWT_SECRET, MONGO_INITDB_ROOT_PASSWORD,
         # MONGODB_URI, MONGODB_DB, GEMINI_API_KEY.
         # Optional secrets: VPS_PORT, VPS_KEY_PASSPHRASE, PUBLIC_API_URL,
-        # REPO_CLONE_URL, PORTFOLIO_REPO_CLONE_URL, PORTFOLIO_REPO_BRANCH,
-        # GOOGLE_APPLICATION_CREDENTIALS.
+        # GITHUB_DEPLOY_TOKEN, REPO_CLONE_URL, PORTFOLIO_REPO_CLONE_URL,
+        # PORTFOLIO_REPO_BRANCH, GOOGLE_APPLICATION_CREDENTIALS.
