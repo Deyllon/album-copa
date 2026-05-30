@@ -1,0 +1,46 @@
+services:
+  copa-mongo:
+    image: mongo:7
+    restart: unless-stopped
+    env_file:
+      - ${COPA_ENV_FILE:-.env.production}
+    volumes:
+      - copa_mongo_data:/data/db
+    networks:
+      - copa-internal
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  copa-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: copa-api:latest
+    container_name: copa-api
+    restart: unless-stopped
+    env_file:
+      - ${COPA_ENV_FILE:-.env.production}
+    expose:
+      - "3005"
+    depends_on:
+      copa-mongo:
+        condition: service_healthy
+    networks:
+      - copa-internal
+      - reverse-proxy
+
+volumes:
+  copa_mongo_data:
+
+networks:
+  copa-internal:
+  reverse-proxy:
+    name: reverse-proxy
+    external: true

@@ -1,0 +1,141 @@
+name: Deploy Copa API to VPS
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+
+            repo_path="${{ secrets.REPO_PATH }}"
+            repo_url="${{ secrets.REPO_CLONE_URL }}"
+            portfolio_path="${{ secrets.PORTFOLIO_REPO_PATH }}"
+            portfolio_url="${{ secrets.PORTFOLIO_REPO_CLONE_URL }}"
+
+            if [ -z "$repo_url" ]; then
+              repo_url="https://github.com/${{ github.repository }}.git"
+            fi
+
+            if [ -z "$portfolio_url" ]; then
+              portfolio_url="https://github.com/Deyllon/Portfolio.git"
+            fi
+
+            if [ -z "$repo_path" ]; then
+              echo "GitHub secret obrigatorio ausente: REPO_PATH"
+              exit 1
+            fi
+
+            if [ -z "$portfolio_path" ]; then
+              echo "GitHub secret obrigatorio ausente: PORTFOLIO_REPO_PATH"
+              echo "Ele deve apontar para a pasta do repo Portfolio na VPS, por exemplo /opt/portfolio."
+              exit 1
+            fi
+
+            if [ ! -d "$repo_path/.git" ]; then
+              if [ -d "$repo_path" ] && [ "$(ls -A "$repo_path")" ]; then
+                echo "$repo_path existe, mas nao e um repo git vazio."
+                exit 1
+              fi
+              mkdir -p "$(dirname "$repo_path")"
+              git clone "$repo_url" "$repo_path"
+            fi
+
+            cd "$repo_path"
+            git remote set-url origin "$repo_url"
+            git fetch origin main --prune
+            git reset --hard ${{ github.sha }}
+
+            if [ ! -d "$portfolio_path/.git" ]; then
+              if [ -d "$portfolio_path" ] && [ "$(ls -A "$portfolio_path")" ]; then
+                echo "$portfolio_path existe, mas nao e um repo git vazio."
+                exit 1
+              fi
+              mkdir -p "$(dirname "$portfolio_path")"
+              git clone "$portfolio_url" "$portfolio_path"
+            fi
+
+            cd "$portfolio_path"
+            git remote set-url origin "$portfolio_url"
+            git fetch origin main --prune
+            git reset --hard origin/main
+
+            if ! grep -q 'handle_path /copa-api/\*' Caddyfile; then
+              tmp_caddy="$(mktemp)"
+              awk '
+                BEGIN { inserted = 0 }
+                /handle_path \/lets-walk-api\/\*/ && inserted == 0 {
+                  print "    handle_path /copa-api/* {"
+                  print "        reverse_proxy copa-api:3005"
+                  print "    }"
+                  print ""
+                  inserted = 1
+                }
+                { print }
+              ' Caddyfile > "$tmp_caddy"
+              mv "$tmp_caddy" Caddyfile
+            fi
+            sed -i 's/reverse_proxy copa-api:[0-9][0-9]*/reverse_proxy copa-api:3005/g' Caddyfile
+
+            docker network inspect reverse-proxy >/dev/null 2>&1 || docker network create reverse-proxy
+            docker compose config -q
+            caddy_container="$(docker compose ps -q caddy || true)"
+            if [ -n "$caddy_container" ]; then
+              docker cp ./Caddyfile "$caddy_container:/etc/caddy/Caddyfile"
+              docker exec "$caddy_container" caddy validate --config /etc/caddy/Caddyfile
+              docker exec "$caddy_container" caddy reload --config /etc/caddy/Caddyfile
+            else
+              docker compose up -d --build
+            fi
+
+            cd "$repo_path"
+
+            cat > .env.production <<'EOF'
+            PORT=3005
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            MONGO_INITDB_ROOT_USERNAME=copa
+            MONGO_INITDB_ROOT_PASSWORD=${{ secrets.MONGO_INITDB_ROOT_PASSWORD }}
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            MONGODB_DB=${{ secrets.MONGODB_DB }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+            EOF
+
+            required_env='JWT_SECRET MONGO_INITDB_ROOT_PASSWORD MONGODB_URI MONGODB_DB GEMINI_API_KEY'
+            for key in $required_env; do
+              if ! grep -q "^$key=." .env.production; then
+                echo "GitHub secret obrigatorio ausente: $key"
+                exit 1
+              fi
+            done
+            chmod 600 .env.production
+
+            COPA_ENV_FILE=.env.production docker compose -f docker-compose.prod.yml config -q
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"
+
+            public_api_url="${{ secrets.PUBLIC_API_URL }}"
+            if [ -n "$public_api_url" ]; then
+              curl -fsS --max-time 20 "$public_api_url/catalog/search?q=BRA2" >/dev/null
+            fi
+
+        # Required secrets: VPS_HOST, VPS_USER, VPS_KEY, REPO_PATH,
+        # PORTFOLIO_REPO_PATH, JWT_SECRET, MONGO_INITDB_ROOT_PASSWORD,
+        # MONGODB_URI, MONGODB_DB, GEMINI_API_KEY.
+        # Optional secrets: VPS_PORT, PUBLIC_API_URL, REPO_CLONE_URL,
+        # PORTFOLIO_REPO_CLONE_URL, GOOGLE_APPLICATION_CREDENTIALS.

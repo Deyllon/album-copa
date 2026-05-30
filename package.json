@@ -1,0 +1,25 @@
+{
+  "name": "copa-album",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "lint": "npm run lint -ws --if-present",
+    "seed:samples": "node scripts/create-sample-users.mjs",
+    "test": "npm run test -ws --if-present",
+    "test:api": "npm --workspace @copa/api test",
+    "test:mobile": "npm --workspace @copa/mobile test",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "overrides": {
+    "react": "19.1.4",
+    "react-test-renderer": "19.1.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

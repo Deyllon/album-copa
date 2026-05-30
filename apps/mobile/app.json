@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Album da Copa",
+    "slug": "copa-album",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "copa-album",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.copa.album"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que o app leia codigos e nomes das figurinhas."
+        }
+      ]
+    ]
+  }
+}
