@@ -1,3 +1,5 @@
+name: copa-album
+
 services:
   copa-mongo:
     image: mongo:7
@@ -25,7 +27,6 @@ services:
       context: .
       dockerfile: Dockerfile.api
     image: copa-api:latest
-    container_name: copa-api
     restart: unless-stopped
     mem_limit: 384m
     env_file:

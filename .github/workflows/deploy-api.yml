@@ -164,6 +164,11 @@ jobs:
             chmod 600 .env.production
 
             COPA_ENV_FILE=.env.production docker compose -f docker-compose.prod.yml config -q
+            docker compose --env-file .env.production -f docker-compose.prod.yml down --remove-orphans --timeout 30 || true
+            stale_containers="$(docker ps -a --format '{{.ID}} {{.Names}}' | awk '$2 == "copa-api" || $2 == "copa-album-copa-api-1" || $2 == "copa-album-copa-mongo-1" || $2 ~ /_copa-album-copa-api-1$/ || $2 ~ /_copa-album-copa-mongo-1$/ { print $1 }')"
+            if [ -n "$stale_containers" ]; then
+              docker rm -f $stale_containers
+            fi
             if ! docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans; then
               docker compose --env-file .env.production -f docker-compose.prod.yml ps || true
               docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=120 copa-api copa-mongo || true
