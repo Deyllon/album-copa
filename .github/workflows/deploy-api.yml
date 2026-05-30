@@ -18,14 +18,17 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_KEY }}
+          passphrase: ${{ secrets.VPS_KEY_PASSPHRASE }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
 
             repo_path="${{ secrets.REPO_PATH }}"
             repo_url="${{ secrets.REPO_CLONE_URL }}"
+            deploy_ref="${{ github.ref_name }}"
             portfolio_path="${{ secrets.PORTFOLIO_REPO_PATH }}"
             portfolio_url="${{ secrets.PORTFOLIO_REPO_CLONE_URL }}"
+            portfolio_ref="${{ secrets.PORTFOLIO_REPO_BRANCH }}"
 
             if [ -z "$repo_url" ]; then
               repo_url="https://github.com/${{ github.repository }}.git"
@@ -33,6 +36,10 @@ jobs:
 
             if [ -z "$portfolio_url" ]; then
               portfolio_url="https://github.com/Deyllon/Portfolio.git"
+            fi
+
+            if [ -z "$portfolio_ref" ]; then
+              portfolio_ref="main"
             fi
 
             if [ -z "$repo_path" ]; then
@@ -57,7 +64,7 @@ jobs:
 
             cd "$repo_path"
             git remote set-url origin "$repo_url"
-            git fetch origin main --prune
+            git fetch origin "$deploy_ref" --prune
             git reset --hard ${{ github.sha }}
 
             if [ ! -d "$portfolio_path/.git" ]; then
@@ -71,8 +78,8 @@ jobs:
 
             cd "$portfolio_path"
             git remote set-url origin "$portfolio_url"
-            git fetch origin main --prune
-            git reset --hard origin/main
+            git fetch origin "$portfolio_ref" --prune
+            git reset --hard "origin/$portfolio_ref"
 
             if ! grep -q 'handle_path /copa-api/\*' Caddyfile; then
               tmp_caddy="$(mktemp)"
@@ -137,5 +144,6 @@ jobs:
         # Required secrets: VPS_HOST, VPS_USER, VPS_KEY, REPO_PATH,
         # PORTFOLIO_REPO_PATH, JWT_SECRET, MONGO_INITDB_ROOT_PASSWORD,
         # MONGODB_URI, MONGODB_DB, GEMINI_API_KEY.
-        # Optional secrets: VPS_PORT, PUBLIC_API_URL, REPO_CLONE_URL,
-        # PORTFOLIO_REPO_CLONE_URL, GOOGLE_APPLICATION_CREDENTIALS.
+        # Optional secrets: VPS_PORT, VPS_KEY_PASSPHRASE, PUBLIC_API_URL,
+        # REPO_CLONE_URL, PORTFOLIO_REPO_CLONE_URL, PORTFOLIO_REPO_BRANCH,
+        # GOOGLE_APPLICATION_CREDENTIALS.
