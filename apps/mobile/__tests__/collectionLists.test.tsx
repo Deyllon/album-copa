@@ -1,9 +1,11 @@
 import {
   buildShareText,
   compareFriendTextToMissing,
+  getCompletedTeamGroups,
   getCollectionStats,
   getMissingStickers,
   groupStickersByTeamCode,
+  sortStickerCodes,
 } from "../src/utils/collectionLists";
 import { AlbumSticker } from "../src/hooks/useAlbumApp";
 
@@ -82,6 +84,25 @@ describe("collection list helpers", () => {
     ]);
   });
 
+  it("sorts sticker codes by their numeric suffix", () => {
+    expect(["SUI10", "SUI2", "SUI1"].sort(sortStickerCodes)).toEqual([
+      "SUI1",
+      "SUI2",
+      "SUI10",
+    ]);
+  });
+
+  it("returns only teams whose stickers are all owned", () => {
+    expect(
+      getCompletedTeamGroups([
+        { ...album[0], owned: true },
+        album[1],
+        { ...album[2], owned: true },
+        album[3],
+      ]).map(([teamCode]) => teamCode),
+    ).toEqual(["MEX", "RSA"]);
+  });
+
   it("exports duplicate text with sticker codes and counts", () => {
     expect(
       buildShareText({
@@ -113,6 +134,52 @@ describe("collection list helpers", () => {
     expect(result.alreadyOwned.map((sticker) => sticker.code)).toEqual([
       "RSA5",
       "MEX14",
+    ]);
+  });
+
+  it("compares the exact text exported by the app", () => {
+    const friendText = buildShareText({
+      title: "Minhas repetidas",
+      stickers: [album[0], album[1]],
+      includeDuplicates: true,
+    });
+
+    const result = compareFriendTextToMissing(friendText, album);
+
+    expect(result.needed.map((sticker) => sticker.code)).toEqual(["MEX4"]);
+    expect(result.alreadyOwned.map((sticker) => sticker.code)).toEqual(["MEX14"]);
+    expect(result.unmatchedLines).toEqual([]);
+  });
+
+  it("compares simple sticker-code lists and prioritizes the code in each line", () => {
+    const result = compareFriendTextToMissing(
+      [
+        "MEX4, MEX14",
+        "COL10 | 07 - Nome diferente",
+      ].join("\n"),
+      album,
+    );
+
+    expect(result.needed.map((sticker) => sticker.code)).toEqual([
+      "COL10",
+      "MEX4",
+    ]);
+    expect(result.alreadyOwned.map((sticker) => sticker.code)).toEqual([
+      "MEX14",
+    ]);
+    expect(result.unmatchedLines).toEqual([]);
+  });
+
+  it("reports every sticker code it cannot recognize", () => {
+    const result = compareFriendTextToMissing(
+      "Minhas repetidas\nMEX4, ABC99\n- 22 - Jogador desconhecido\nTexto desconhecido",
+      album,
+    );
+
+    expect(result.unmatchedLines).toEqual([
+      "ABC99",
+      "- 22 - Jogador desconhecido",
+      "Texto desconhecido",
     ]);
   });
 });

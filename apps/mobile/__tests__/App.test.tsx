@@ -415,6 +415,19 @@ describe("Copa Album mobile app", () => {
     expect(screen.getByText("Alisson")).toBeOnTheScreen();
   });
 
+  it("opens the completed teams tab from the menu", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mockGetMyAlbum).toHaveBeenCalled();
+    });
+
+    await openMenuTab(user, "Completas");
+
+    expect(screen.getByText("Nenhuma seleção completa")).toBeOnTheScreen();
+  });
+
   it("lets the user remove a wrong scan result and add a missing sticker before applying the review", async () => {
     const user = userEvent.setup();
     render(<App />);

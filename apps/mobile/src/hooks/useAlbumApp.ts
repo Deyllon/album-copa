@@ -42,15 +42,16 @@ function normalizeAlbum(data: unknown): AlbumSticker[] {
 
   return data.map((item) => {
     const sticker = item as Partial<AlbumSticker>;
+    const aliases = Array.isArray(sticker.aliases)
+      ? sticker.aliases.map((alias) => String(alias))
+      : [];
     return {
       code: String(sticker.code ?? ""),
-      playerName: String(sticker.playerName ?? ""),
+      playerName: getReadablePlayerName(String(sticker.playerName ?? ""), aliases),
       team: String(sticker.team ?? ""),
       albumPage: Number(sticker.albumPage ?? 0),
       albumPosition: Number(sticker.albumPosition ?? 0),
-      aliases: Array.isArray(sticker.aliases)
-        ? sticker.aliases.map((alias) => String(alias))
-        : [],
+      aliases,
       owned: Boolean(sticker.owned),
       duplicateCount: Number(sticker.duplicateCount ?? 0),
     };

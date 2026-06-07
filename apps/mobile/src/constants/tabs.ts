@@ -3,6 +3,7 @@ export type AppTab =
   | "album"
   | "duplicates"
   | "missing"
+  | "completed"
   | "lists"
   | "scan"
   | "trades"
@@ -13,6 +14,7 @@ export const appTabs: Array<{ id: AppTab; label: string }> = [
   { id: "album", label: "Album" },
   { id: "duplicates", label: "Repetidas" },
   { id: "missing", label: "Faltantes" },
+  { id: "completed", label: "Completas" },
   { id: "lists", label: "Listas" },
   { id: "scan", label: "Scan" },
   { id: "trades", label: "Trocas" },

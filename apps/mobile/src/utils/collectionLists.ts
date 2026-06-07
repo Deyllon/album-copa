@@ -1,4 +1,8 @@
-import { getReadablePlayerName, normalizeText } from "@copa/shared";
+import {
+  extractStickerCodes,
+  getReadablePlayerName,
+  normalizeText,
+} from "@copa/shared";
 import { AlbumSticker } from "../hooks/useAlbumApp";
 
 export type CollectionStats = {
@@ -28,11 +32,25 @@ export function getStickerTeamCode(sticker: AlbumSticker) {
   return sticker.code.match(/^[A-Z]+/)?.[0] ?? sticker.code;
 }
 
+export function sortStickerCodes(left: string, right: string) {
+  const leftMatch = left.match(/^([A-Z]+)(\d+)$/);
+  const rightMatch = right.match(/^([A-Z]+)(\d+)$/);
+
+  if (!leftMatch || !rightMatch) {
+    return left.localeCompare(right);
+  }
+
+  return (
+    leftMatch[1].localeCompare(rightMatch[1]) ||
+    Number(leftMatch[2]) - Number(rightMatch[2])
+  );
+}
+
 export function sortStickers(left: AlbumSticker, right: AlbumSticker) {
   return (
     left.team.localeCompare(right.team) ||
     left.albumPosition - right.albumPosition ||
-    left.code.localeCompare(right.code)
+    sortStickerCodes(left.code, right.code)
   );
 }
 
@@ -82,10 +100,16 @@ export function groupStickersByTeamCode(stickers: AlbumSticker[]) {
       [...items].sort(
         (left, right) =>
           left.albumPosition - right.albumPosition ||
-          left.code.localeCompare(right.code),
+          sortStickerCodes(left.code, right.code),
       ),
     ] as const)
     .sort((left, right) => left[0].localeCompare(right[0]));
+}
+
+export function getCompletedTeamGroups(album: AlbumSticker[]) {
+  return groupStickersByTeamCode(album).filter(([, stickers]) =>
+    stickers.every(isStickerOwned),
+  );
 }
 
 export function buildShareText({
@@ -141,6 +165,15 @@ function findTeamFromHeader(line: string, album: AlbumSticker[]) {
   return teams
     .filter((team) => matchesTeam(normalizedLine, team))
     .sort((left, right) => right.length - left.length)[0];
+}
+
+function isKnownListTitle(line: string) {
+  return [
+    "MINHAS REPETIDAS",
+    "FIGURINHAS QUE FALTAM",
+    "REPETIDAS",
+    "FALTANTES",
+  ].includes(normalizeText(line));
 }
 
 function findStickerFromTextItem({
@@ -213,15 +246,41 @@ export function compareFriendTextToMissing(
   const unmatchedLines: string[] = [];
   let currentTeam: string | undefined;
 
+  function addSticker(sticker: AlbumSticker) {
+    if (isStickerOwned(sticker)) {
+      alreadyOwned.set(sticker.code, sticker);
+    } else {
+      needed.set(sticker.code, sticker);
+    }
+  }
+
   for (const rawLine of rawText.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || /^Vem para o App/i.test(line) || /^Link:/i.test(line)) {
       continue;
     }
 
+    const stickerCodes = extractStickerCodes(line);
+    if (stickerCodes.length > 0) {
+      for (const code of stickerCodes) {
+        const sticker = album.find((item) => item.code === code);
+        if (sticker) {
+          addSticker(sticker);
+        } else {
+          unmatchedLines.push(code);
+        }
+      }
+      continue;
+    }
+
     const itemMatch = line.match(/(?:^|\s)(\d{1,3})\s*[-–—]\s*(.+?)(?:\s*\(\d+\))?\s*$/);
     if (!itemMatch) {
-      currentTeam = findTeamFromHeader(line, album);
+      const detectedTeam = findTeamFromHeader(line, album);
+      if (detectedTeam) {
+        currentTeam = detectedTeam;
+      } else if (!isKnownListTitle(line)) {
+        unmatchedLines.push(line);
+      }
       continue;
     }
 
@@ -239,11 +298,7 @@ export function compareFriendTextToMissing(
       continue;
     }
 
-    if (isStickerOwned(sticker)) {
-      alreadyOwned.set(sticker.code, sticker);
-    } else {
-      needed.set(sticker.code, sticker);
-    }
+    addSticker(sticker);
   }
 
   return {

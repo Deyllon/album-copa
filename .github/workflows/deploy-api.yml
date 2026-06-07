@@ -206,7 +206,9 @@ jobs:
                 done
               fi
             fi
-            if ! docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans; then
+            # Recreating the API triggers DatabaseService.onModuleInit(), which
+            # bulk-upserts the current seed catalog into the persisted Mongo volume.
+            if ! docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate --remove-orphans; then
               docker compose --env-file .env.production -f docker-compose.prod.yml ps || true
               docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=120 copa-api copa-mongo || true
               free -m || true
@@ -216,6 +218,7 @@ jobs:
             docker compose --env-file .env.production -f docker-compose.prod.yml ps
 
             api_smoke_check="(async () => { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=BRA2'); if (!res.ok) throw new Error('status ' + res.status); const data = await res.json(); if (!Array.isArray(data)) throw new Error('invalid response'); console.log('Copa API OK'); })().catch((err) => { console.error(err); process.exit(1); })"
+            catalog_sync_check="(async () => { const expected = { SUI7: 'Aur\u00e8le Amenda', ALG9: 'Houssem Aouar', BIH3: 'Amar Dedi\u0107' }; for (const [code, expectedName] of Object.entries(expected)) { const res = await fetch('http://127.0.0.1:3005/catalog/search?q=' + encodeURIComponent(code)); if (!res.ok) throw new Error(code + ': status ' + res.status); const data = await res.json(); const sticker = Array.isArray(data) ? data.find((item) => item.code === code) : undefined; if (!sticker) throw new Error(code + ': figurinha nao encontrada'); if (sticker.playerName !== expectedName) throw new Error(code + ': esperado ' + JSON.stringify(expectedName) + ', recebido ' + JSON.stringify(sticker.playerName)); } console.log('Catalogo Mongo atualizado: ' + Object.keys(expected).length + ' nomes validados'); })().catch((err) => { console.error(err); process.exit(1); })"
             api_ready=false
             for attempt in $(seq 1 30); do
               if docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$api_smoke_check" >/dev/null 2>&1; then
@@ -233,6 +236,7 @@ jobs:
               exit 1
             fi
             docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$api_smoke_check"
+            docker compose --env-file .env.production -f docker-compose.prod.yml exec -T copa-api node -e "$catalog_sync_check"
 
             public_api_url="${{ secrets.PUBLIC_API_URL }}"
             if [ -n "$public_api_url" ]; then

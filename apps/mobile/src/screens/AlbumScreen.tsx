@@ -5,7 +5,11 @@ import { TeamAccordion } from "../components/TeamAccordion";
 import { AlbumSticker } from "../hooks/useAlbumApp";
 import { EmptyState } from "./EmptyState";
 import { colors, radius, spacing, type } from "../theme/tokens";
-import { getCollectionStats, isStickerOwned } from "../utils/collectionLists";
+import {
+  getCollectionStats,
+  isStickerOwned,
+  sortStickerCodes,
+} from "../utils/collectionLists";
 
 type AlbumSortMode = "progress" | "name" | "code";
 
@@ -33,9 +37,9 @@ export function AlbumScreen({
       sortMode === "name"
         ? (left: AlbumSticker, right: AlbumSticker) =>
             left.playerName.localeCompare(right.playerName) ||
-            left.code.localeCompare(right.code)
+            sortStickerCodes(left.code, right.code)
         : (left: AlbumSticker, right: AlbumSticker) =>
-            left.code.localeCompare(right.code) ||
+            sortStickerCodes(left.code, right.code) ||
             left.playerName.localeCompare(right.playerName);
 
     return [...byTeam.entries()]
@@ -53,7 +57,7 @@ export function AlbumScreen({
         if (sortMode === "code") {
           const leftCode = left[1][0]?.code ?? "";
           const rightCode = right[1][0]?.code ?? "";
-          return leftCode.localeCompare(rightCode) || left[0].localeCompare(right[0]);
+          return sortStickerCodes(leftCode, rightCode) || left[0].localeCompare(right[0]);
         }
 
         return left[0].localeCompare(right[0]);

@@ -50,7 +50,9 @@ describe("DuplicatesScreen", () => {
     expect(screen.getByText("KSA")).toBeOnTheScreen();
     expect(screen.queryByText("KSA5")).toBeNull();
 
-    await user.press(screen.getByRole("button", { name: "abrir repetidas KSA" }));
+    await user.press(
+      screen.getByRole("button", { name: "abrir repetidas KSA" }),
+    );
 
     expect(screen.getByText("KSA5")).toBeOnTheScreen();
     expect(screen.getByText("x2")).toBeOnTheScreen();
@@ -60,5 +62,6 @@ describe("DuplicatesScreen", () => {
       screen.getByRole("button", { name: "adicionar outra repetida KSA5" }),
     );
     expect(addDuplicate).toHaveBeenCalledWith("KSA5");
+    l;
   });
 });

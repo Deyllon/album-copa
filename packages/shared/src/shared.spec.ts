@@ -1,13 +1,31 @@
-import { buildScanReview, compareTrades, searchCatalog, seedCatalog } from ".";
+import {
+  buildScanReview,
+  compareTrades,
+  getReadablePlayerName,
+  searchCatalog,
+  seedCatalog,
+} from ".";
 
 describe("shared album rules", () => {
   it("loads the Copa 2026 seed catalog", () => {
     expect(seedCatalog).toHaveLength(960);
-    expect(searchCatalog(seedCatalog, { query: "MEX2" })[0]?.playerName).toBe("Luis Malagon");
+    expect(searchCatalog(seedCatalog, { query: "MEX2" })[0]?.playerName).toBe("Luis Malagón");
   });
 
   it("searches by canonical code without translating the prefix", () => {
     expect(searchCatalog(seedCatalog, { query: "BRA2" })[0]?.playerName).toBe("Alisson");
+  });
+
+  it("exposes correctly encoded player names", () => {
+    expect(getReadablePlayerName("Joao Felix")).toBe("Joao Felix");
+    expect(getReadablePlayerName("João Félix")).toBe("João Félix");
+    expect(
+      getReadablePlayerName("Vinicius JÃºnior", ["Vini Jr", "Vinicius Junior"]),
+    ).toBe("Vinicius Júnior");
+    expect(searchCatalog(seedCatalog, { query: "SUI7" })[0]?.playerName).toBe(
+      "Aurèle Amenda",
+    );
+    expect(seedCatalog.every((sticker) => !/[ÃÂ�]/.test(sticker.playerName))).toBe(true);
   });
 
   it("detects duplicate code scans from the sticker back", () => {

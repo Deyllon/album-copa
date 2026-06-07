@@ -99,4 +99,24 @@ describe("TextListsScreen", () => {
     );
     expect(toggleSticker).toHaveBeenCalledWith("MEX4");
   });
+
+  it("shows which pasted items were not recognized", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TextListsScreen
+        album={album}
+        toggleSticker={jest.fn(async () => undefined)}
+      />,
+    );
+
+    await user.type(
+      screen.getByLabelText("texto de repetidas do amigo"),
+      "MEX4, ABC99\n- 22 - Jogador desconhecido",
+    );
+
+    expect(screen.getByText("Itens não reconhecidos")).toBeOnTheScreen();
+    expect(screen.getByText("ABC99")).toBeOnTheScreen();
+    expect(screen.getByText("- 22 - Jogador desconhecido")).toBeOnTheScreen();
+  });
 });

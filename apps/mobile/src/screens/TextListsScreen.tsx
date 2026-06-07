@@ -139,7 +139,25 @@ export function TextListsScreen({
           </View>
         ) : null}
 
-        {friendText.trim() && textComparison.needed.length === 0 ? (
+        {textComparison.unmatchedLines.length > 0 ? (
+          <View style={styles.unmatchedCard}>
+            <Text accessibilityRole="header" style={styles.unmatchedTitle}>
+              Itens não reconhecidos
+            </Text>
+            <Text style={styles.unmatchedDescription}>
+              Confira estes códigos ou linhas antes de concluir a comparação:
+            </Text>
+            {textComparison.unmatchedLines.map((line, index) => (
+              <Text key={`${line}-${index}`} style={styles.unmatchedLine}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
+        {friendText.trim() &&
+        textComparison.needed.length === 0 &&
+        textComparison.unmatchedLines.length === 0 ? (
           <EmptyState
             title="Nada novo nessa lista"
             description="Nenhuma figurinha faltante foi encontrada no texto colado."
@@ -233,6 +251,26 @@ const styles = StyleSheet.create({
   },
   resultList: {
     gap: spacing.sm,
+  },
+  unmatchedCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  unmatchedTitle: {
+    ...type.bodyStrong,
+    color: colors.danger,
+  },
+  unmatchedDescription: {
+    ...type.caption,
+    color: colors.text,
+  },
+  unmatchedLine: {
+    ...type.code,
+    color: colors.text,
   },
   stickerRow: {
     flexDirection: "row",

@@ -16,13 +16,37 @@ export function hasSuspiciousEncoding(value: string): boolean {
   return /[ÃÂ�]/.test(value);
 }
 
-export function getReadablePlayerName(playerName: string, aliases: string[] = []): string {
-  const normalizedName = playerName.trim();
-  const fallback = aliases.find((alias) => alias.trim().length > 0)?.trim();
-  if (fallback && hasSuspiciousEncoding(normalizedName)) {
-    return fallback;
+export function repairMojibake(value: string): string {
+  const trimmed = value.trim();
+  if (!hasSuspiciousEncoding(trimmed)) {
+    return trimmed;
   }
-  return normalizedName;
+
+  try {
+    const encodedBytes = Array.from(trimmed)
+      .map((character) => {
+        const code = character.charCodeAt(0);
+        if (code > 255) {
+          throw new Error("Not a Latin-1 mojibake string");
+        }
+        return `%${code.toString(16).padStart(2, "0")}`;
+      })
+      .join("");
+    return decodeURIComponent(encodedBytes);
+  } catch {
+    return trimmed;
+  }
+}
+
+export function getReadablePlayerName(playerName: string, aliases: string[] = []): string {
+  const normalizedName = repairMojibake(playerName);
+  const fallback = aliases
+    .map((alias) => alias.trim())
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length)[0];
+  return fallback && hasSuspiciousEncoding(normalizedName)
+    ? repairMojibake(fallback)
+    : normalizedName;
 }
 
 export function extractStickerCodes(rawText: string): string[] {

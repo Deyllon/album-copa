@@ -47,7 +47,7 @@ describe("Copa Album API", () => {
       .get("/catalog/search?q=MEX2")
       .expect(200)
       .expect(({ body }) => {
-        expect(body[0].playerName).toBe("Luis Malagon");
+        expect(body[0].playerName).toBe("Luis Malagón");
       });
 
     await request(app.getHttpServer())

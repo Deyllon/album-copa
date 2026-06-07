@@ -15,6 +15,7 @@ import { useAuth } from "./src/hooks/useAuth";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { SignupScreen } from "./src/screens/SignupScreen";
 import { AlbumScreen } from "./src/screens/AlbumScreen";
+import { CompletedScreen } from "./src/screens/CompletedScreen";
 import { DuplicatesScreen } from "./src/screens/DuplicatesScreen";
 import { FriendsScreen } from "./src/screens/FriendsScreen";
 import { MissingScreen } from "./src/screens/MissingScreen";
@@ -95,6 +96,7 @@ export default function App() {
   const menuTabs = [
     { id: "duplicates", label: "Repetidas", icon: "copy" },
     { id: "missing", label: "Faltantes", icon: "albums" },
+    { id: "completed", label: "Completas", icon: "checkmark-circle" },
     { id: "lists", label: "Listas", icon: "document-text" },
     { id: "friends", label: "Amigos", icon: "people" },
   ] as const;
@@ -200,6 +202,8 @@ export default function App() {
         {tab === "missing" ? (
           <MissingScreen album={album} toggleSticker={toggleSticker} />
         ) : null}
+
+        {tab === "completed" ? <CompletedScreen album={album} /> : null}
 
         {tab === "lists" ? (
           <TextListsScreen album={album} toggleSticker={toggleSticker} />
